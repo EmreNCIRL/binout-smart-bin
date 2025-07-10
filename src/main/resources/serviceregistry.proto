@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package binout.registry;
+
+option java_multiple_files = true;
+option java_package = "binout.registry";
+option java_outer_classname = "ServiceRegistryProto";
+
+// Message describing the service info to register or discover
+message ServiceInfo {
+  string serviceName = 1;
+  string serviceAddress = 2;
+  int32 servicePort = 3;
+}
+
+// Empty message for requests that don't need parameters
+message Empty {}
+
+// Acknowledgment message for registration
+message Ack {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request message for discovery: you can extend it if needed
+message ServiceQuery {
+  string serviceName = 1;
+}
+
+// Response message returning list of services matching the query
+message ServiceList {
+  repeated ServiceInfo services = 1;
+}
+
+// The ServiceRegistry service definition
+service ServiceRegistry {
+  // Register a service
+  rpc Register(ServiceInfo) returns (Ack);
+
+  // Discover services by name
+  rpc Discover(ServiceQuery) returns (ServiceList);
+}
