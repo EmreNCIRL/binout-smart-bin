@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package binout.binschedule;
+
+option java_multiple_files = true;
+option java_package = "binout.binschedule";
+option java_outer_classname = "BinScheduleProto";
+
+message BinSchedule {
+  string userId = 1;
+  string binType = 2;
+  string collectionDate = 3;
+}
+
+message BinRequest {
+  string userId = 1;
+}
+
+message Ack {
+  bool success = 1;
+  string message = 2;
+}
+
+service BinScheduleService {
+  rpc SetSchedule(BinSchedule) returns (Ack);
+  rpc GetSchedule(BinRequest) returns (BinSchedule);
+}
+
