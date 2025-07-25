@@ -20,7 +20,7 @@ public class BinOutServer {
             .addService(new AlertServiceImpl())
             .build();
 
-        System.out.println("Starting gRPC server on port " + port + "...");
+        System.out.println("Starting the gRPC server on port " + port + "...");
         server.start();
         System.out.println("Server started.");
 
