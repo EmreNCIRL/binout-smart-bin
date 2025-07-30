@@ -8,8 +8,10 @@ option java_outer_classname = "BinScheduleProto";
 
 message BinSchedule {
   string userId = 1;
-  string binType = 2;
-  string collectionDate = 3;
+  string greenDate = 2;
+  string blueDate = 3;
+  string brownDate = 4;
+  string redDate = 5;
 }
 
 message BinRequest {
@@ -25,4 +27,3 @@ service BinScheduleService {
   rpc SetSchedule(BinSchedule) returns (Ack);
   rpc GetSchedule(BinRequest) returns (BinSchedule);
 }
-

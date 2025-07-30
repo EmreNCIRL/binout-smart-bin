@@ -1,171 +1,178 @@
-package binout;
+package binout.client;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 
 public class BinOutGUI implements ActionListener {
 
     private JFrame frame;
 
+    // Profile fields
     private JTextField nameField;
     private JTextField emailField;
     private JComboBox<String> providerBox;
     private JComboBox<String> cityBox;
     private JComboBox<String> zoneBox;
+
+    // Bin checkboxes
     private JCheckBox greenBin, blueBin, brownBin, redBin;
 
-    private JButton cancelBtn, createBtn;
+    // Buttons
+    private JButton createUpdateBtn;
+    private JButton greenBtn, blueBtn, brownBtn, redBtn;
 
-    private JButton homeBtn, scheduleBtn, profileBtn;
+    // Status label
+    private JLabel statusLabel;
 
+    // User data state
+    private String userId = "u123";
     private String userName = "";
+    private String userEmail = "";
+    private String userProvider = "CountryClean";
+    private String userCity = "Dublin";
+    private String userZone = "Dublin - Zone 1";
     private boolean hasGreen, hasBlue, hasBrown, hasRed;
 
-    private JPanel homePanel, schedulePanel, profilePanel, navPanel;
+    // Backend client
+    private BinOutClient binOutClient;
 
     public static void main(String[] args) {
         new BinOutGUI().build();
     }
 
-    public void build() {
-        frame = new JFrame("BinOut");
+    private void build() {
+        frame = new JFrame("BinOut Simple");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLayout(new BorderLayout());
 
-        profilePanel = getProfileCreationPanel();
-        homePanel = getHomePanel();
-        schedulePanel = getSchedulePanel();
-        navPanel = getNavPanel();
+        binOutClient = new BinOutClient("localhost", 50051);
 
-        frame.add(profilePanel, BorderLayout.CENTER);
-
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-    }
-
-    private JPanel getNavPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-        panel.setBorder(new EmptyBorder(10, 30, 10, 30));
-
-        homeBtn = new JButton("Home");
-        scheduleBtn = new JButton("Schedule");
-        profileBtn = new JButton("Profile");
-
-        homeBtn.addActionListener(this);
-        scheduleBtn.addActionListener(this);
-        profileBtn.addActionListener(this);
-
-        panel.add(homeBtn);
-        panel.add(Box.createRigidArea(new Dimension(20, 0)));
-        panel.add(scheduleBtn);
-        panel.add(Box.createRigidArea(new Dimension(20, 0)));
-        panel.add(profileBtn);
-
-        return panel;
-    }
-
-    private JPanel getProfileCreationPanel() {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBorder(new EmptyBorder(30, 50, 30, 50));
+        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        JLabel welcomeLabel = new JLabel("<html><div style='text-align: center;'>Welcome to BinOut!<br> Ireland's first smart bin collection reminder.<br><br> Please create your user profile to get started.</div></html>", SwingConstants.CENTER);
-        welcomeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        mainPanel.add(welcomeLabel);
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        // Welcome message at top
+        statusLabel = new JLabel("<html>Welcome! Please enter your details to start tracking your bin collection dates.</html>");
+        statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(statusLabel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        mainPanel.add(getInputPanel("Full Name", nameField = new JTextField(20)));
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        mainPanel.add(getInputPanel("Email Address", emailField = new JTextField(20)));
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        // Profile inputs
+        mainPanel.add(createLabeledFieldPanel("Full Name:", nameField = new JTextField(15)));
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        mainPanel.add(createLabeledFieldPanel("Email:", emailField = new JTextField(15)));
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
         String[] providers = {"CountryClean", "GreenStar", "Panda"};
         providerBox = new JComboBox<>(providers);
-        mainPanel.add(getComboBoxPanel("Choose Bin Provider", providerBox));
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        mainPanel.add(createLabeledComboPanel("Bin Provider:", providerBox));
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
         String[] cities = {"Dublin", "Cork", "Galway"};
         cityBox = new JComboBox<>(cities);
         cityBox.addActionListener(e -> updateZones((String) cityBox.getSelectedItem()));
-        mainPanel.add(getComboBoxPanel("Choose City", cityBox));
-        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        mainPanel.add(createLabeledComboPanel("City:", cityBox));
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
         zoneBox = new JComboBox<>();
         updateZones("Dublin");
-        mainPanel.add(getComboBoxPanel("Choose Zone", zoneBox));
+        mainPanel.add(createLabeledComboPanel("Zone:", zoneBox));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        JLabel binLabel = new JLabel("Which bins do you have?");
-        binLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        mainPanel.add(binLabel);
+        // Ask which bins they have
+        JLabel binQuestion = new JLabel("Which bins do you have? Please mark them below:");
+        binQuestion.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(binQuestion);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+
+        // Bin checkboxes
+        JPanel binsPanel = new JPanel();
+        binsPanel.setLayout(new BoxLayout(binsPanel, BoxLayout.X_AXIS));
+        binsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         greenBin = new JCheckBox("Green");
         blueBin = new JCheckBox("Blue");
         brownBin = new JCheckBox("Brown");
         redBin = new JCheckBox("Red");
-        JPanel binPanel = new JPanel();
-        binPanel.setLayout(new BoxLayout(binPanel, BoxLayout.X_AXIS));
-        binPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        binPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        binPanel.add(greenBin);
-        binPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        binPanel.add(blueBin);
-        binPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        binPanel.add(brownBin);
-        binPanel.add(Box.createRigidArea(new Dimension(10, 0)));
-        binPanel.add(redBin);
-        binPanel.add(Box.createRigidArea(new Dimension(10, 0)));
 
-        mainPanel.add(binPanel);
+        binsPanel.add(greenBin);
+        binsPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        binsPanel.add(blueBin);
+        binsPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        binsPanel.add(brownBin);
+        binsPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        binsPanel.add(redBin);
+
+        mainPanel.add(binsPanel);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        cancelBtn = new JButton("Cancel");
-        createBtn = new JButton("Create Profile");
-        cancelBtn.addActionListener(this);
-        createBtn.addActionListener(this);
+        // Create/Update profile button
+        createUpdateBtn = new JButton("Create/Update Profile");
+        createUpdateBtn.addActionListener(this);
+        createUpdateBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(createUpdateBtn);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
-        buttonPanel.add(cancelBtn);
-        buttonPanel.add(Box.createRigidArea(new Dimension(20, 0)));
-        buttonPanel.add(createBtn);
-        buttonPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Info above bin pickup buttons
+        JLabel pickupInfo = new JLabel("Click a bin button to see its next collection date.");
+        pickupInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(pickupInfo);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
-        mainPanel.add(buttonPanel);
+        // Bin pickup buttons
+        JPanel pickupPanel = new JPanel();
+        pickupPanel.setLayout(new BoxLayout(pickupPanel, BoxLayout.X_AXIS));
+        pickupPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        return mainPanel;
+        greenBtn = new JButton("Green Pickup");
+        blueBtn = new JButton("Blue Pickup");
+        brownBtn = new JButton("Brown Pickup");
+        redBtn = new JButton("Red Pickup");
+
+        greenBtn.addActionListener(this);
+        blueBtn.addActionListener(this);
+        brownBtn.addActionListener(this);
+        redBtn.addActionListener(this);
+
+        pickupPanel.add(greenBtn);
+        pickupPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        pickupPanel.add(blueBtn);
+        pickupPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        pickupPanel.add(brownBtn);
+        pickupPanel.add(Box.createRigidArea(new Dimension(10, 0)));
+        pickupPanel.add(redBtn);
+
+        mainPanel.add(pickupPanel);
+
+        frame.add(mainPanel);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
 
-    private JPanel getInputPanel(String labelText, JTextField field) {
+    private JPanel createLabeledFieldPanel(String labelText, JTextField field) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
         JLabel label = new JLabel(labelText);
-        label.setPreferredSize(new Dimension(120, 25));
+        label.setPreferredSize(new Dimension(100, 25));
         panel.add(label);
-        panel.add(Box.createRigidArea(new Dimension(10, 0)));
+        panel.add(Box.createRigidArea(new Dimension(5, 0)));
         panel.add(field);
 
         return panel;
     }
 
-    private JPanel getComboBoxPanel(String labelText, JComboBox<String> comboBox) {
+    private JPanel createLabeledComboPanel(String labelText, JComboBox<String> comboBox) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
         JLabel label = new JLabel(labelText);
-        label.setPreferredSize(new Dimension(120, 25));
+        label.setPreferredSize(new Dimension(100, 25));
         panel.add(label);
-        panel.add(Box.createRigidArea(new Dimension(10, 0)));
+        panel.add(Box.createRigidArea(new Dimension(5, 0)));
         panel.add(comboBox);
 
         return panel;
@@ -192,107 +199,88 @@ public class BinOutGUI implements ActionListener {
         }
     }
 
-    private JPanel getHomePanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(new EmptyBorder(30, 50, 30, 50));
-
-        JLabel heading = new JLabel("You're on track!");
-        heading.setFont(new Font("Arial", Font.BOLD, 18));
-        heading.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(heading);
-        panel.add(Box.createRigidArea(new Dimension(0, 20)));
-
-        JLabel binOutLabel = new JLabel("Bin out?");
-        binOutLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        binOutLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.add(binOutLabel);
-        panel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        JPanel binsPanel = new JPanel();
-        binsPanel.setLayout(new BoxLayout(binsPanel, BoxLayout.Y_AXIS));
-        binsPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        ArrayList<JCheckBox> binChecks = new ArrayList<>();
-
-        if (hasGreen) binChecks.add(new JCheckBox("Green", true));
-        if (hasBlue) binChecks.add(new JCheckBox("Blue", false));
-        if (hasBrown) binChecks.add(new JCheckBox("Brown", false));
-        if (hasRed) binChecks.add(new JCheckBox("Red", false));
-
-        if (!binChecks.isEmpty()) {
-            binChecks.get(0).setSelected(true);
-        }
-
-        for (JCheckBox cb : binChecks) {
-            cb.setAlignmentX(Component.LEFT_ALIGNMENT);
-            binsPanel.add(cb);
-            binsPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        }
-
-        panel.add(binsPanel);
-
-        return panel;
-    }
-
-    private JPanel getSchedulePanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-
-        JLabel label = new JLabel("Schedule (coming soon)", SwingConstants.CENTER);
-        label.setFont(new Font("Arial", Font.BOLD, 18));
-        panel.add(label, BorderLayout.CENTER);
-
-        return panel;
-    }
-
     @Override
     public void actionPerformed(ActionEvent e) {
-        String cmd = e.getActionCommand();
+        Object src = e.getSource();
 
-        if (cmd.equals("Cancel")) {
-            nameField.setText("");
-            emailField.setText("");
-            providerBox.setSelectedIndex(0);
-            cityBox.setSelectedIndex(0);
-            updateZones("Dublin");
-            greenBin.setSelected(false);
-            blueBin.setSelected(false);
-            brownBin.setSelected(false);
-            redBin.setSelected(false);
+        if (src == createUpdateBtn) {
+            String newName = nameField.getText().trim();
+            String newEmail = emailField.getText().trim();
 
-        } else if (cmd.equals("Create Profile")) {
-            userName = nameField.getText();
+            if (newName.isEmpty() || newEmail.isEmpty()) {
+                JOptionPane.showMessageDialog(frame,
+                        "Name and Email cannot be empty.",
+                        "Input Error",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            userName = newName;
+            userEmail = newEmail;
+            userProvider = (String) providerBox.getSelectedItem();
+            userCity = (String) cityBox.getSelectedItem();
+            userZone = (String) zoneBox.getSelectedItem();
             hasGreen = greenBin.isSelected();
             hasBlue = blueBin.isSelected();
             hasBrown = brownBin.isSelected();
             hasRed = redBin.isSelected();
 
-            homePanel = getHomePanel();
+            try {
+                binOutClient.createUserProfile(userId, userName, userEmail);
+                binOutClient.setBinSchedule(
+                        userId,
+                        hasGreen ? "2025-08-01" : "N/A",
+                        hasBlue ? "2025-08-02" : "N/A",
+                        hasBrown ? "2025-08-03" : "N/A",
+                        hasRed ? "2025-08-04" : "N/A"
+                );
 
-            frame.getContentPane().removeAll();
-            frame.add(homePanel, BorderLayout.CENTER);
-            frame.add(navPanel, BorderLayout.SOUTH);
-            frame.revalidate();
-            frame.repaint();
+                statusLabel.setText("Profile saved. Welcome, " + userName + "!");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(frame,
+                        "Error saving profile/schedule: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } else if (src == greenBtn || src == blueBtn || src == brownBtn || src == redBtn) {
+            String binName = "";
+            if (src == greenBtn) binName = "green";
+            else if (src == blueBtn) binName = "blue";
+            else if (src == brownBtn) binName = "brown";
+            else if (src == redBtn) binName = "red";
 
-        } else if (cmd.equals("Home")) {
-            homePanel = getHomePanel();
-            switchToPanel(homePanel);
+            if (!(binName.equals("green") && hasGreen) &&
+                !(binName.equals("blue") && hasBlue) &&
+                !(binName.equals("brown") && hasBrown) &&
+                !(binName.equals("red") && hasRed)) {
+                JOptionPane.showMessageDialog(frame,
+                        "You don't have this bin selected.",
+                        "Info",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
 
-        } else if (cmd.equals("Schedule")) {
-            switchToPanel(schedulePanel);
+            try {
+                var schedule = binOutClient.getBinSchedule(userId);
 
-        } else if (cmd.equals("Profile")) {
-            switchToPanel(profilePanel);
+                String date = switch (binName) {
+                    case "green" -> schedule.getGreenDate();
+                    case "blue" -> schedule.getBlueDate();
+                    case "brown" -> schedule.getBrownDate();
+                    case "red" -> schedule.getRedDate();
+                    default -> "No date found";
+                };
+
+                JOptionPane.showMessageDialog(frame,
+                        "Next pickup date for " + binName + " bin is: " + date,
+                        "Pickup Date",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(frame,
+                        "Error fetching schedule: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
         }
-    }
-
-    private void switchToPanel(JPanel panel) {
-        frame.getContentPane().removeAll();
-        frame.add(panel, BorderLayout.CENTER);
-        frame.add(navPanel, BorderLayout.SOUTH);
-        frame.revalidate();
-        frame.repaint();
     }
 }

@@ -1,56 +1,66 @@
-# binout-smart-bin
-A distributed smart bin reminder app using Java, gRPC, and JavaFX – for Distributed Systems CA - NCIRL
+#binout-smart-bin
 
-# BinOut – Smart Bin Reminder App
+A distributed smart bin reminder app using Java, gRPC, and Swing – for Distributed Systems CA – NCIRL
+#BinOut – Smart Bin Reminder App
 
-Hi! This is a small project I built for my Distributed Systems module at NCI.  
+Hi! This is a small project I built for my Distributed Systems module at NCI.
 The goal is to help people stay on top of their bin collection days using a lightweight, automated setup.
 
-It supports the United Nation’s SDG 11: Sustainable Cities and Communities by encouraging better waste habits through small-scale automation.
+It supports the United Nations SDG 11: Sustainable Cities and Communities by encouraging better waste‑management habits through a small‑scale automated environment.
+#What It Does
 
-## What It Does
+    Lets users enter their profile (provider, city, zone, bin types)
 
-- Lets users select their bin provider and bin types
-- Simulates collection schedules based on hardcoded data
-- Alerts users a day before pickup
-- Flags upcoming holidays with a warning message
-- Uses a clean JavaFX interface with colour-coded buttons
+    Stores profiles and bin schedules in separate services
 
-## Tech Stack
+    Simulates collection schedules with hardcoded dates
 
-- Java (all services)
-- gRPC for inter-service communication
-- JavaFX for the GUI
-- Maven for builds
-- Netbeans
+    “Next pickup” buttons show tomorrow’s date or “N/A”
 
-## Services
+    Simple Swing‑based GUI for registration and lookup
 
-1. **Service Registry** – for dynamic service discovery  
-2. **User Profile Service** – stores user location, provider, and bin types  
-3. **Bin Schedule Service** – returns next pickup date based on static data  
-4. **Alert Service** – checks which bins are due tomorrow and flags holidays
+#Tech Stack
 
-## GUI Overview
+    Java 17 for all services and client
 
-- Toggle buttons for setting up bin provider and bin types
-- One button per bin, showing next pickup date
-- Green = due tomorrow, Red = not due
-- Banner appears if holiday warning is active
+    gRPC (Protobuf 3 + grpc‑java) for inter‑service RPC
 
-## Testing
+    Swing for the GUI
 
-Includes unit tests for each RPC and integration tests for the full workflow.  
-Covers edge cases like missing schedule data and holiday overlaps.
+    Maven for build, Protobuf codegen, and execution
 
-## Deployment
+#Services
 
-Runs locally on separate ports to simulate a distributed system.  
-No cloud setup — everything stays self-contained and simple for demo purposes.
+    Service Registry – dynamic discovery and registration of services
 
+    User Profile Service – stores userId, name, email, bin provider, city/zone, bin types
 
-## Author
+    Bin Schedule Service – manages/retrieves bin pickup schedules
 
-Emre Ketme  
-Student ID: 24191779  
+#GUI Overview
+
+    Profile pane: enter name, email, provider, city, zone, and select bin types
+
+    “Create/Update Profile” button saves both profile and schedule
+
+    Four “Pickup” buttons (Green, Blue, Brown, Red) display next collection date in a dialog
+
+    Status banner confirms when profile and schedule are saved
+
+#Testing
+
+    Unit tests for each RPC implementation
+
+    Integration test covering full workflow: register → create profile → set schedule → get schedule
+
+    Edge cases: missing profile, missing schedule
+
+#Deployment
+
+Everything runs locally on port 50051 to simulate a distributed environment.
+No external/cloud dependencies—just Java, Maven, and your desktop.
+Author
+
+Emre Ketme
+Student ID: 24191779
 x24191779@student.ncirl.ie

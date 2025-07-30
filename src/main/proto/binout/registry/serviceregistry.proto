@@ -13,9 +13,6 @@ message ServiceInfo {
   int32 servicePort = 3;
 }
 
-// Empty message for requests that don't need parameters
-message Empty {}
-
 // Acknowledgment message for registration
 message Ack {
   bool success = 1;
