@@ -1,3 +1,4 @@
+//Proto file for UserProfileService, manages user profiles and their bin preferences.
 syntax = "proto3";
 
 package binout.userprofile;

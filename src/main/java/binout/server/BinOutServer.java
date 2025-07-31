@@ -14,6 +14,7 @@ import io.grpc.ServerBuilder;
 public class BinOutServer {
 
     public static void main(String[] args) throws Exception {
+        // create and start gRPC server on port 50051 with all services
         Server server = ServerBuilder.forPort(50051)
                 .addService(new BinScheduleImpl())
                 .addService(new UserProfileImpl())
@@ -23,17 +24,18 @@ public class BinOutServer {
         server.start();
         System.out.println("Server started on port 50051");
 
-
-        // Register services
+        // register all services to the Service Registry
         registerService("BinScheduleService", "localhost", 50051);
         registerService("UserProfileService", "localhost", 50051);
         registerService("ServiceRegistry", "localhost", 50051);
 
+        // keep server running
         server.awaitTermination();
     }
 
     private static void registerService(String name, String host, int port) {
         try {
+            // create channel to registry service
             ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
                     .usePlaintext()
                     .build();
@@ -41,12 +43,14 @@ public class BinOutServer {
             ServiceRegistryGrpc.ServiceRegistryBlockingStub stub =
                     ServiceRegistryGrpc.newBlockingStub(channel);
 
+            // build service info message for registration
             ServiceInfo info = ServiceInfo.newBuilder()
                     .setServiceName(name)
                     .setServiceAddress(host)
                     .setServicePort(port)
                     .build();
 
+            // send register request
             stub.register(info);
             channel.shutdown();
             System.out.println("Registered service: " + name);

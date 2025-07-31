@@ -20,10 +20,12 @@ import java.util.List;
 
 public class BinOutClient {
 
+    // channel and stub to communicate with the Service Registry
     private final ManagedChannel registryChannel;
     private final ServiceRegistryGrpc.ServiceRegistryBlockingStub registryStub;
 
     public BinOutClient(String registryHost, int registryPort) {
+        // connect to registry server on start
         registryChannel = ManagedChannelBuilder.forAddress(registryHost, registryPort)
                 .usePlaintext()
                 .build();
@@ -31,20 +33,25 @@ public class BinOutClient {
     }
 
     public void shutdown() {
+        // close registry channel cleanly
         registryChannel.shutdown();
     }
 
     private ServiceInfo discoverService(String serviceName) throws Exception {
+        // ask registry for service info by name
         ServiceQuery query = ServiceQuery.newBuilder().setServiceName(serviceName).build();
         ServiceList services = registryStub.discover(query);
         List<ServiceInfo> serviceInfos = services.getServicesList();
         if (serviceInfos.isEmpty()) {
+            // throw error if service not found
             throw new Exception(serviceName + " not found in registry");
         }
+        // return first service info found
         return serviceInfos.get(0);
     }
 
     private UserProfileServiceGrpc.UserProfileServiceBlockingStub getUserProfileStub() throws Exception {
+        // get UserProfileService address from registry and create stub
         ServiceInfo info = discoverService("UserProfileService");
         ManagedChannel channel = ManagedChannelBuilder.forAddress(info.getServiceAddress(), info.getServicePort())
                 .usePlaintext()
@@ -53,6 +60,7 @@ public class BinOutClient {
     }
 
     private BinScheduleServiceGrpc.BinScheduleServiceBlockingStub getBinScheduleStub() throws Exception {
+        // get BinScheduleService address from registry and create stub
         ServiceInfo info = discoverService("BinScheduleService");
         ManagedChannel channel = ManagedChannelBuilder.forAddress(info.getServiceAddress(), info.getServicePort())
                 .usePlaintext()
@@ -61,6 +69,7 @@ public class BinOutClient {
     }
 
     public void createUserProfile(String userId, String name, String email) throws Exception {
+        // build user profile and send createProfile request
         UserProfile profile = UserProfile.newBuilder()
                 .setUserId(userId)
                 .setName(name)
@@ -73,6 +82,7 @@ public class BinOutClient {
     }
 
     public void getUserProfile(String userId) throws Exception {
+        // send getProfile request and print result
         UserRequest request = UserRequest.newBuilder().setUserId(userId).build();
 
         UserProfileServiceGrpc.UserProfileServiceBlockingStub stub = getUserProfileStub();
@@ -81,6 +91,7 @@ public class BinOutClient {
     }
 
     public void setBinSchedule(String userId, String greenDate, String blueDate, String brownDate, String redDate) throws Exception {
+        // create bin schedule and send setSchedule request
         BinSchedule schedule = BinSchedule.newBuilder()
                 .setUserId(userId)
                 .setGreenDate(greenDate)
@@ -95,6 +106,7 @@ public class BinOutClient {
     }
 
     public BinSchedule getBinSchedule(String userId) throws Exception {
+        // request bin schedule for user
         BinRequest request = BinRequest.newBuilder().setUserId(userId).build();
 
         BinScheduleServiceGrpc.BinScheduleServiceBlockingStub stub = getBinScheduleStub();
@@ -103,6 +115,7 @@ public class BinOutClient {
 
     public static void main(String[] args) {
         try {
+            // simple test client flow
             BinOutClient client = new BinOutClient("localhost", 50051);
 
             client.createUserProfile("u123", "Em User", "em@example.com");

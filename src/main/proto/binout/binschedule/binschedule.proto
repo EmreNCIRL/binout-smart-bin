@@ -1,3 +1,4 @@
+// Proto file for BinScheduleService, defines messages and RPCs to manage bin collection schedules.
 syntax = "proto3";
 
 package binout.binschedule;

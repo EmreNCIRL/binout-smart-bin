@@ -10,25 +10,25 @@ public class BinOutGUI implements ActionListener {
 
     private JFrame frame;
 
-    // Profile fields
+    // user profile input fields
     private JTextField nameField;
     private JTextField emailField;
     private JComboBox<String> providerBox;
     private JComboBox<String> cityBox;
     private JComboBox<String> zoneBox;
 
-    // Bin checkboxes
+    // checkboxes for bin ownership
     private JCheckBox greenBin, blueBin, brownBin, redBin;
 
-    // Buttons
+    // buttons for actions
     private JButton createUpdateBtn;
     private JButton greenBtn, blueBtn, brownBtn, redBtn;
 
-    // Status label
+    // label to show status messages
     private JLabel statusLabel;
 
-    // User data state
-    private String userId = "u123";
+    // keep track of user data in variables
+    private String userId = "u123"; // fixed userId for demo
     private String userName = "";
     private String userEmail = "";
     private String userProvider = "CountryClean";
@@ -36,7 +36,7 @@ public class BinOutGUI implements ActionListener {
     private String userZone = "Dublin - Zone 1";
     private boolean hasGreen, hasBlue, hasBrown, hasRed;
 
-    // Backend client
+    // client to talk to backend services
     private BinOutClient binOutClient;
 
     public static void main(String[] args) {
@@ -47,47 +47,51 @@ public class BinOutGUI implements ActionListener {
         frame = new JFrame("BinOut Simple");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        // connect to gRPC backend client
         binOutClient = new BinOutClient("localhost", 50051);
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // Welcome message at top
+        // welcome message on top of GUI
         statusLabel = new JLabel("<html>Welcome! Please enter your details to start tracking your bin collection dates.</html>");
         statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(statusLabel);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // Profile inputs
+        // add input fields for name and email
         mainPanel.add(createLabeledFieldPanel("Full Name:", nameField = new JTextField(15)));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         mainPanel.add(createLabeledFieldPanel("Email:", emailField = new JTextField(15)));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
+        // dropdown for bin provider selection
         String[] providers = {"CountryClean", "GreenStar", "Panda"};
         providerBox = new JComboBox<>(providers);
         mainPanel.add(createLabeledComboPanel("Bin Provider:", providerBox));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
+        // dropdown for city, updates zone list on change
         String[] cities = {"Dublin", "Cork", "Galway"};
         cityBox = new JComboBox<>(cities);
         cityBox.addActionListener(e -> updateZones((String) cityBox.getSelectedItem()));
         mainPanel.add(createLabeledComboPanel("City:", cityBox));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
+        // dropdown for zone based on city
         zoneBox = new JComboBox<>();
         updateZones("Dublin");
         mainPanel.add(createLabeledComboPanel("Zone:", zoneBox));
         mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // Ask which bins they have
+        // label asking user which bins they have
         JLabel binQuestion = new JLabel("Which bins do you have? Please mark them below:");
         binQuestion.setAlignmentX(Component.LEFT_ALIGNMENT);
         mainPanel.add(binQuestion);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
-        // Bin checkboxes
+        // panel holding bin checkboxes side by side
         JPanel binsPanel = new JPanel();
         binsPanel.setLayout(new BoxLayout(binsPanel, BoxLayout.X_AXIS));
         binsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -108,20 +112,20 @@ public class BinOutGUI implements ActionListener {
         mainPanel.add(binsPanel);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // Create/Update profile button
+        // button to create or update profile and schedule
         createUpdateBtn = new JButton("Create/Update Profile");
         createUpdateBtn.addActionListener(this);
         createUpdateBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(createUpdateBtn);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        // Info above bin pickup buttons
+        // info label above pickup buttons
         JLabel pickupInfo = new JLabel("Click a bin button to see its next collection date.");
         pickupInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(pickupInfo);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
-        // Bin pickup buttons
+        // panel for bin pickup buttons horizontally
         JPanel pickupPanel = new JPanel();
         pickupPanel.setLayout(new BoxLayout(pickupPanel, BoxLayout.X_AXIS));
         pickupPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -153,6 +157,7 @@ public class BinOutGUI implements ActionListener {
     }
 
     private JPanel createLabeledFieldPanel(String labelText, JTextField field) {
+        // helper to create label + textfield in one line
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
@@ -166,6 +171,7 @@ public class BinOutGUI implements ActionListener {
     }
 
     private JPanel createLabeledComboPanel(String labelText, JComboBox<String> comboBox) {
+        // helper to create label + dropdown combo box in one line
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
@@ -179,6 +185,7 @@ public class BinOutGUI implements ActionListener {
     }
 
     private void updateZones(String city) {
+        // update zone dropdown items depending on city selected
         zoneBox.removeAllItems();
         switch (city) {
             case "Dublin" -> {
@@ -204,10 +211,12 @@ public class BinOutGUI implements ActionListener {
         Object src = e.getSource();
 
         if (src == createUpdateBtn) {
+            // user clicked create/update button - save profile & schedule
             String newName = nameField.getText().trim();
             String newEmail = emailField.getText().trim();
 
             if (newName.isEmpty() || newEmail.isEmpty()) {
+                // show warning if name or email empty
                 JOptionPane.showMessageDialog(frame,
                         "Name and Email cannot be empty.",
                         "Input Error",
@@ -215,6 +224,7 @@ public class BinOutGUI implements ActionListener {
                 return;
             }
 
+            // update user info variables from inputs
             userName = newName;
             userEmail = newEmail;
             userProvider = (String) providerBox.getSelectedItem();
@@ -226,6 +236,7 @@ public class BinOutGUI implements ActionListener {
             hasRed = redBin.isSelected();
 
             try {
+                // call backend to save profile and schedule (dummy dates if no bin)
                 binOutClient.createUserProfile(userId, userName, userEmail);
                 binOutClient.setBinSchedule(
                         userId,
@@ -237,18 +248,21 @@ public class BinOutGUI implements ActionListener {
 
                 statusLabel.setText("Profile saved. Welcome, " + userName + "!");
             } catch (Exception ex) {
+                // show error popup if saving fails
                 JOptionPane.showMessageDialog(frame,
                         "Error saving profile/schedule: " + ex.getMessage(),
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
             }
         } else if (src == greenBtn || src == blueBtn || src == brownBtn || src == redBtn) {
+            // user clicked a bin pickup button, show next collection date
             String binName = "";
             if (src == greenBtn) binName = "green";
             else if (src == blueBtn) binName = "blue";
             else if (src == brownBtn) binName = "brown";
             else if (src == redBtn) binName = "red";
 
+            // check if user owns this bin, if not show info message
             if (!(binName.equals("green") && hasGreen) &&
                 !(binName.equals("blue") && hasBlue) &&
                 !(binName.equals("brown") && hasBrown) &&
@@ -261,6 +275,7 @@ public class BinOutGUI implements ActionListener {
             }
 
             try {
+                // fetch schedule from backend and show date popup
                 var schedule = binOutClient.getBinSchedule(userId);
 
                 String date = switch (binName) {
@@ -276,6 +291,7 @@ public class BinOutGUI implements ActionListener {
                         "Pickup Date",
                         JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
+                // error fetching schedule, show error popup
                 JOptionPane.showMessageDialog(frame,
                         "Error fetching schedule: " + ex.getMessage(),
                         "Error",

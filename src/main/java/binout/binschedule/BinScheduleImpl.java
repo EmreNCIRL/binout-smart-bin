@@ -16,15 +16,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceImplBase {
 
+    // store all bin schedules in memory by userId
     private final ConcurrentHashMap<String, BinSchedule> scheduleMap = new ConcurrentHashMap<>();
 
+    // registry server info for service discovery
     private final String registryHost = "localhost";
     private final int registryPort = 50051;
 
     @Override
     public void setSchedule(BinSchedule request, StreamObserver<Ack> responseObserver) {
+        // save/update the schedule for user
         scheduleMap.put(request.getUserId(), request);
 
+        // send back success ack with message
         Ack ack = Ack.newBuilder()
                 .setSuccess(true)
                 .setMessage("Schedule saved for user: " + request.getUserId())
@@ -37,7 +41,7 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
     @Override
     public void getSchedule(BinRequest request, StreamObserver<BinSchedule> responseObserver) {
         try {
-            // Discover UserProfileService via ServiceRegistry
+            // first find UserProfileService via the registry
             ManagedChannel registryChannel = ManagedChannelBuilder.forAddress(registryHost, registryPort)
                     .usePlaintext()
                     .build();
@@ -52,13 +56,15 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
             registryChannel.shutdown();
 
             if (services.getServicesCount() == 0) {
+                // error if no UserProfileService found
                 responseObserver.onError(new Throwable("UserProfileService not found via registry."));
                 return;
             }
 
+            // take first found UserProfileService info
             ServiceInfo profileServiceInfo = services.getServices(0);
 
-            // Connect to UserProfileService
+            // connect to UserProfileService to get user profile
             ManagedChannel userProfileChannel = ManagedChannelBuilder
                     .forAddress(profileServiceInfo.getServiceAddress(), profileServiceInfo.getServicePort())
                     .usePlaintext()
@@ -73,21 +79,24 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
 
             userProfileChannel.shutdown();
 
-            // (Optional) Use profile info here for custom logic
+            // just printing zone info here, can use for logic if needed
             System.out.println("Fetched user zone: " + profile.getZone());
 
-            // Return existing schedule
+            // get schedule from local map
             BinSchedule schedule = scheduleMap.get(request.getUserId());
 
             if (schedule == null) {
+                // error if schedule missing for user
                 responseObserver.onError(new Throwable("No schedule found for user: " + request.getUserId()));
                 return;
             }
 
+            // send schedule back to client
             responseObserver.onNext(schedule);
             responseObserver.onCompleted();
 
         } catch (Exception e) {
+            // catch any error and send to client
             responseObserver.onError(e);
         }
     }
