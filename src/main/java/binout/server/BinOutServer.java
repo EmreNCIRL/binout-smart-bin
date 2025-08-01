@@ -1,62 +1,50 @@
+/*
+Emre Ketme
+Distributed Systems CA
+*/
+
 package binout.server;
 
-import binout.registry.ServiceInfo;
-import binout.registry.ServiceRegistryGrpc;
-import binout.userprofile.UserProfileImpl;
 import binout.binschedule.BinScheduleImpl;
-import binout.registry.ServiceRegistryImpl;
-
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import binout.recycling.RecyclingAdvisorImpl;
+import binout.userprofile.UserProfileImpl;
+import binout.discovery.JmDNSServiceRegistrar;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 
 public class BinOutServer {
-
     public static void main(String[] args) throws Exception {
-        // create and start gRPC server on port 50051 with all services
         Server server = ServerBuilder.forPort(50051)
-                .addService(new BinScheduleImpl())
-                .addService(new UserProfileImpl())
-                .addService(new ServiceRegistryImpl())
-                .build();
+            .addService(new BinScheduleImpl())
+            .addService(new UserProfileImpl())
+            .addService(new RecyclingAdvisorImpl())
+            .intercept(new AuthInterceptor()) // add metadata auth interceptor here
+            .build();
+
+        System.out.println("Starting BinOut gRPC server on port 50051...");
+        System.out.println("Registered services:");
+        System.out.println("- BinScheduleImpl");
+        System.out.println("- UserProfileImpl");
+        System.out.println("- RecyclingAdvisorImpl");
 
         server.start();
-        System.out.println("Server started on port 50051");
+        System.out.println("Server started successfully.");
 
-        // register all services to the Service Registry
-        registerService("BinScheduleService", "localhost", 50051);
-        registerService("UserProfileService", "localhost", 50051);
-        registerService("ServiceRegistry", "localhost", 50051);
+        JmDNSServiceRegistrar registrar = new JmDNSServiceRegistrar();
 
-        // keep server running
+        registrar.registerService("_binschedule._tcp.local.", "BinScheduleService", 50051, "Bin schedule service");
+        registrar.registerService("_userprofile._tcp.local.", "UserProfileService", 50051, "User profile service");
+        registrar.registerService("_recyclingadvisor._tcp.local.", "RecyclingAdvisorService", 50051, "Recycling advisor service");
+
+        System.out.println("All services registered with jmDNS.");
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutting down server...");
+            registrar.unregisterAll();
+            server.shutdown();
+            System.out.println("Server stopped.");
+        }));
+
         server.awaitTermination();
-    }
-
-    private static void registerService(String name, String host, int port) {
-        try {
-            // create channel to registry service
-            ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
-                    .usePlaintext()
-                    .build();
-
-            ServiceRegistryGrpc.ServiceRegistryBlockingStub stub =
-                    ServiceRegistryGrpc.newBlockingStub(channel);
-
-            // build service info message for registration
-            ServiceInfo info = ServiceInfo.newBuilder()
-                    .setServiceName(name)
-                    .setServiceAddress(host)
-                    .setServicePort(port)
-                    .build();
-
-            // send register request
-            stub.register(info);
-            channel.shutdown();
-            System.out.println("Registered service: " + name);
-        } catch (Exception e) {
-            System.err.println("Failed to register service: " + name);
-            e.printStackTrace();
-        }
     }
 }

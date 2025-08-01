@@ -1,103 +1,122 @@
+/*
+Emre Ketme
+Distributed Systems CA
+*/
+
 package binout.binschedule;
 
-import binout.registry.ServiceInfo;
-import binout.registry.ServiceQuery;
-import binout.registry.ServiceList;
-import binout.registry.ServiceRegistryGrpc;
-import binout.userprofile.UserProfile;
-import binout.userprofile.UserRequest;
-import binout.userprofile.UserProfileServiceGrpc;
-
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceImplBase {
+    private final ConcurrentHashMap<String, BinSchedule> citySchedules = new ConcurrentHashMap<>();
 
-    // store all bin schedules in memory by userId
-    private final ConcurrentHashMap<String, BinSchedule> scheduleMap = new ConcurrentHashMap<>();
-
-    // registry server info for service discovery
-    private final String registryHost = "localhost";
-    private final int registryPort = 50051;
-
-    @Override
-    public void setSchedule(BinSchedule request, StreamObserver<Ack> responseObserver) {
-        // save/update the schedule for user
-        scheduleMap.put(request.getUserId(), request);
-
-        // send back success ack with message
-        Ack ack = Ack.newBuilder()
-                .setSuccess(true)
-                .setMessage("Schedule saved for user: " + request.getUserId())
-                .build();
-
-        responseObserver.onNext(ack);
-        responseObserver.onCompleted();
+    public BinScheduleImpl() {
+        citySchedules.put("dublin", BinSchedule.newBuilder()
+            .setCity("dublin")
+            .setGreenDate("Monday")
+            .setBlueDate("Wednesday")
+            .setBrownDate("Friday")
+            .build());
+        citySchedules.put("cork", BinSchedule.newBuilder()
+            .setCity("cork")
+            .setGreenDate("Tuesday")
+            .setBlueDate("Thursday")
+            .setBrownDate("Saturday")
+            .build());
+        citySchedules.put("galway", BinSchedule.newBuilder()
+            .setCity("galway")
+            .setGreenDate("Wednesday")
+            .setBlueDate("Friday")
+            .setBrownDate("Sunday")
+            .build());
     }
 
     @Override
     public void getSchedule(BinRequest request, StreamObserver<BinSchedule> responseObserver) {
-        try {
-            // first find UserProfileService via the registry
-            ManagedChannel registryChannel = ManagedChannelBuilder.forAddress(registryHost, registryPort)
-                    .usePlaintext()
-                    .build();
-
-            ServiceRegistryGrpc.ServiceRegistryBlockingStub registryStub = ServiceRegistryGrpc.newBlockingStub(registryChannel);
-
-            ServiceQuery query = ServiceQuery.newBuilder()
-                    .setServiceName("UserProfileService")
-                    .build();
-
-            ServiceList services = registryStub.discover(query);
-            registryChannel.shutdown();
-
-            if (services.getServicesCount() == 0) {
-                // error if no UserProfileService found
-                responseObserver.onError(new Throwable("UserProfileService not found via registry."));
-                return;
-            }
-
-            // take first found UserProfileService info
-            ServiceInfo profileServiceInfo = services.getServices(0);
-
-            // connect to UserProfileService to get user profile
-            ManagedChannel userProfileChannel = ManagedChannelBuilder
-                    .forAddress(profileServiceInfo.getServiceAddress(), profileServiceInfo.getServicePort())
-                    .usePlaintext()
-                    .build();
-
-            UserProfileServiceGrpc.UserProfileServiceBlockingStub profileStub =
-                    UserProfileServiceGrpc.newBlockingStub(userProfileChannel);
-
-            UserProfile profile = profileStub.getProfile(
-                    UserRequest.newBuilder().setUserId(request.getUserId()).build()
-            );
-
-            userProfileChannel.shutdown();
-
-            // just printing zone info here, can use for logic if needed
-            System.out.println("Fetched user zone: " + profile.getZone());
-
-            // get schedule from local map
-            BinSchedule schedule = scheduleMap.get(request.getUserId());
-
-            if (schedule == null) {
-                // error if schedule missing for user
-                responseObserver.onError(new Throwable("No schedule found for user: " + request.getUserId()));
-                return;
-            }
-
-            // send schedule back to client
+        BinSchedule schedule = citySchedules.get(request.getCity().toLowerCase());
+        if (schedule != null) {
             responseObserver.onNext(schedule);
             responseObserver.onCompleted();
-
-        } catch (Exception e) {
-            // catch any error and send to client
-            responseObserver.onError(e);
+        } else {
+            responseObserver.onError(new Throwable("City schedule not found"));
         }
+    }
+
+    @Override
+    public void streamSchedules(BinRequest request, StreamObserver<BinSchedule> responseObserver) {
+        BinSchedule schedule = citySchedules.get(request.getCity().toLowerCase());
+        if (schedule != null) {
+            try {
+                for (int i = 0; i < 3; i++) {
+                    responseObserver.onNext(schedule);
+                    Thread.sleep(1000);
+                }
+                responseObserver.onCompleted();
+            } catch (InterruptedException e) {
+                responseObserver.onError(e);
+            }
+        } else {
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public StreamObserver<BinSchedule> uploadSchedules(StreamObserver<Ack> responseObserver) {
+        return new StreamObserver<BinSchedule>() {
+            int count = 0;
+
+            @Override
+            public void onNext(BinSchedule schedule) {
+                citySchedules.put(schedule.getCity().toLowerCase(), schedule);
+                count++;
+                System.out.println("Uploaded schedule for: " + schedule.getCity());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.err.println("UploadSchedules error: " + t.getMessage());
+            }
+
+            @Override
+            public void onCompleted() {
+                Ack ack = Ack.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Uploaded " + count + " schedules.")
+                    .build();
+                responseObserver.onNext(ack);
+                responseObserver.onCompleted();
+            }
+        };
+    }
+
+    @Override
+    public StreamObserver<BinSchedule> scheduleChat(StreamObserver<Ack> responseObserver) {
+        return new StreamObserver<BinSchedule>() {
+            @Override
+            public void onNext(BinSchedule schedule) {
+                String city = schedule.getCity().toLowerCase();
+                citySchedules.put(city, schedule);
+                System.out.println("Chat updated schedule for: " + city);
+
+                Ack ack = Ack.newBuilder()
+                    .setSuccess(true)
+                    .setMessage("Received schedule for " + city)
+                    .build();
+                responseObserver.onNext(ack);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.err.println("ScheduleChat error: " + t.getMessage());
+                responseObserver.onCompleted();
+            }
+
+            @Override
+            public void onCompleted() {
+                System.out.println("ScheduleChat completed");
+                responseObserver.onCompleted();
+            }
+        };
     }
 }

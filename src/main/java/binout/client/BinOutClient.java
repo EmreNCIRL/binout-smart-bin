@@ -1,133 +1,195 @@
+/*
+Emre Ketme
+Distributed Systems CA
+*/
 package binout.client;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-
-import binout.registry.ServiceRegistryGrpc;
-import binout.registry.ServiceInfo;
-import binout.registry.ServiceQuery;
-import binout.registry.ServiceList;
-
-import binout.userprofile.UserProfileServiceGrpc;
-import binout.userprofile.UserProfile;
-import binout.userprofile.UserRequest;
-
-import binout.binschedule.BinScheduleServiceGrpc;
 import binout.binschedule.BinSchedule;
 import binout.binschedule.BinRequest;
+import binout.binschedule.BinScheduleServiceGrpc;
+import binout.binschedule.Ack;
+import binout.recycling.RecyclingAdvisorServiceGrpc;
+import binout.recycling.WasteType;
+import binout.userprofile.UserProfile;
+import binout.userprofile.UserProfileServiceGrpc;
+import binout.userprofile.UserRequest;
+import binout.discovery.JmDNSServiceDiscovery;
+import io.grpc.ClientInterceptor;
+import io.grpc.ClientInterceptors;
+import io.grpc.Channel;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
+import io.grpc.stub.StreamObserver;
 
-import java.util.List;
+import javax.jmdns.ServiceInfo;
 
 public class BinOutClient {
+    private ManagedChannel managedChannel; // actual channel for shutdown
+    private Channel channel; // intercepted channel for stubs
+    private BinScheduleServiceGrpc.BinScheduleServiceBlockingStub scheduleStub;
+    private UserProfileServiceGrpc.UserProfileServiceBlockingStub profileBlockingStub;
+    private RecyclingAdvisorServiceGrpc.RecyclingAdvisorServiceBlockingStub recyclingStub;
 
-    // channel and stub to communicate with the Service Registry
-    private final ManagedChannel registryChannel;
-    private final ServiceRegistryGrpc.ServiceRegistryBlockingStub registryStub;
-
-    public BinOutClient(String registryHost, int registryPort) {
-        // connect to registry server on start
-        registryChannel = ManagedChannelBuilder.forAddress(registryHost, registryPort)
-                .usePlaintext()
-                .build();
-        registryStub = ServiceRegistryGrpc.newBlockingStub(registryChannel);
+    // setup channel with metadata (auth token)
+    public BinOutClient(String host, int port) {
+        setupChannel(host, port);
     }
 
-    public void shutdown() {
-        // close registry channel cleanly
-        registryChannel.shutdown();
+    private void setupChannel(String host, int port) {
+        Metadata metadata = new Metadata();
+        Metadata.Key<String> tokenKey = Metadata.Key.of("token", Metadata.ASCII_STRING_MARSHALLER);
+        metadata.put(tokenKey, "myprojecttoken");
+
+        managedChannel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+        ClientInterceptor interceptor = MetadataUtils.newAttachHeadersInterceptor(metadata);
+        channel = ClientInterceptors.intercept(managedChannel, interceptor);
+
+        scheduleStub = BinScheduleServiceGrpc.newBlockingStub(channel);
+        profileBlockingStub = UserProfileServiceGrpc.newBlockingStub(channel);
+        recyclingStub = RecyclingAdvisorServiceGrpc.newBlockingStub(channel);
     }
 
-    private ServiceInfo discoverService(String serviceName) throws Exception {
-        // ask registry for service info by name
-        ServiceQuery query = ServiceQuery.newBuilder().setServiceName(serviceName).build();
-        ServiceList services = registryStub.discover(query);
-        List<ServiceInfo> serviceInfos = services.getServicesList();
-        if (serviceInfos.isEmpty()) {
-            // throw error if service not found
-            throw new Exception(serviceName + " not found in registry");
-        }
-        // return first service info found
-        return serviceInfos.get(0);
+    // get bin schedule by city name
+    public String getBinScheduleByCity(String city) {
+        BinRequest request = BinRequest.newBuilder().setCity(city.toLowerCase()).build();
+        BinSchedule schedule = scheduleStub.getSchedule(request);
+        return "Green bin: " + schedule.getGreenDate() + "\n"
+             + "Blue bin: " + schedule.getBlueDate() + "\n"
+             + "Brown bin: " + schedule.getBrownDate();
     }
 
-    private UserProfileServiceGrpc.UserProfileServiceBlockingStub getUserProfileStub() throws Exception {
-        // get UserProfileService address from registry and create stub
-        ServiceInfo info = discoverService("UserProfileService");
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(info.getServiceAddress(), info.getServicePort())
-                .usePlaintext()
-                .build();
-        return UserProfileServiceGrpc.newBlockingStub(channel);
-    }
-
-    private BinScheduleServiceGrpc.BinScheduleServiceBlockingStub getBinScheduleStub() throws Exception {
-        // get BinScheduleService address from registry and create stub
-        ServiceInfo info = discoverService("BinScheduleService");
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(info.getServiceAddress(), info.getServicePort())
-                .usePlaintext()
-                .build();
-        return BinScheduleServiceGrpc.newBlockingStub(channel);
-    }
-
-    public void createUserProfile(String userId, String name, String email) throws Exception {
-        // build user profile and send createProfile request
-        UserProfile profile = UserProfile.newBuilder()
-                .setUserId(userId)
-                .setName(name)
-                .setEmail(email)
-                .build();
-
-        UserProfileServiceGrpc.UserProfileServiceBlockingStub stub = getUserProfileStub();
-        binout.userprofile.Ack ackUser = stub.createProfile(profile);
-        System.out.println("Create profile response: " + ackUser.getMessage());
-    }
-
-    public void getUserProfile(String userId) throws Exception {
-        // send getProfile request and print result
+    // get user profile by userId
+    public UserProfile getUserProfile(String userId) {
         UserRequest request = UserRequest.newBuilder().setUserId(userId).build();
-
-        UserProfileServiceGrpc.UserProfileServiceBlockingStub stub = getUserProfileStub();
-        UserProfile profile = stub.getProfile(request);
-        System.out.println("User profile: " + profile.getName() + ", " + profile.getEmail());
+        return profileBlockingStub.getProfile(request);
     }
 
-    public void setBinSchedule(String userId, String greenDate, String blueDate, String brownDate, String redDate) throws Exception {
-        // create bin schedule and send setSchedule request
-        BinSchedule schedule = BinSchedule.newBuilder()
-                .setUserId(userId)
-                .setGreenDate(greenDate)
-                .setBlueDate(blueDate)
-                .setBrownDate(brownDate)
-                .setRedDate(redDate)
-                .build();
-
-        BinScheduleServiceGrpc.BinScheduleServiceBlockingStub stub = getBinScheduleStub();
-        binout.binschedule.Ack ackBin = stub.setSchedule(schedule);
-        System.out.println("Set schedule response: " + ackBin.getMessage());
+    // get recycling tips by bin type
+    public String getRecyclingTips(String binType) {
+        WasteType request = WasteType.newBuilder().setType(binType).build();
+        return recyclingStub.getRecyclingTip(request).getTips();
     }
 
-    public BinSchedule getBinSchedule(String userId) throws Exception {
-        // request bin schedule for user
-        BinRequest request = BinRequest.newBuilder().setUserId(userId).build();
-
-        BinScheduleServiceGrpc.BinScheduleServiceBlockingStub stub = getBinScheduleStub();
-        return stub.getSchedule(request);
-    }
-
-    public static void main(String[] args) {
-        try {
-            // simple test client flow
-            BinOutClient client = new BinOutClient("localhost", 50051);
-
-            client.createUserProfile("u123", "Em User", "em@example.com");
-            client.getUserProfile("u123");
-
-            client.setBinSchedule("u123", "2025-07-20", "2025-07-21", "2025-07-22", "2025-07-23");
-            BinSchedule schedule = client.getBinSchedule("u123");
-            System.out.println("Bin schedule: Green=" + schedule.getGreenDate() + ", Blue=" + schedule.getBlueDate());
-
-            client.shutdown();
-        } catch (Exception e) {
-            e.printStackTrace();
+    // shutdown channel cleanly
+    public void shutdown() {
+        if (managedChannel != null) {
+            managedChannel.shutdown();
         }
+    }
+
+    // discover service with jmDNS and reset channel
+    public ServiceInfo discoverService(String serviceType) {
+        try (JmDNSServiceDiscovery discovery = new JmDNSServiceDiscovery()) {
+            ServiceInfo serviceInfo = discovery.discoverService(serviceType, 5);
+            if (serviceInfo != null) {
+                System.out.println("Discovered service: " + serviceInfo.getName() +
+                        " at " + serviceInfo.getHostAddresses()[0] +
+                        ":" + serviceInfo.getPort());
+                setupChannel(serviceInfo.getHostAddresses()[0], serviceInfo.getPort());
+            } else {
+                System.out.println("Service not found: " + serviceType);
+            }
+            return serviceInfo;
+        } catch (Exception e) {
+            System.err.println("Error discovering service " + serviceType + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    // client streaming: upload schedules to server
+    public void uploadSampleSchedules() {
+        StreamObserver<BinSchedule> requestObserver =
+            BinScheduleServiceGrpc.newStub(channel).uploadSchedules(new StreamObserver<Ack>() {
+                @Override
+                public void onNext(Ack ack) {
+                    System.out.println("Upload complete: " + ack.getMessage());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    System.err.println("Upload error: " + t.getMessage());
+                }
+
+                @Override
+                public void onCompleted() {
+                    System.out.println("Stream completed.");
+                }
+            });
+
+        BinSchedule s1 = BinSchedule.newBuilder()
+            .setCity("Dublin")
+            .setGreenDate("Monday")
+            .setBlueDate("Thursday")
+            .setBrownDate("Saturday")
+            .build();
+
+        BinSchedule s2 = BinSchedule.newBuilder()
+            .setCity("Cork")
+            .setGreenDate("Tuesday")
+            .setBlueDate("Friday")
+            .setBrownDate("Sunday")
+            .build();
+
+        BinSchedule s3 = BinSchedule.newBuilder()
+            .setCity("Galway")
+            .setGreenDate("Wednesday")
+            .setBlueDate("Saturday")
+            .setBrownDate("Monday")
+            .build();
+
+        requestObserver.onNext(s1);
+        requestObserver.onNext(s2);
+        requestObserver.onNext(s3);
+        requestObserver.onCompleted();
+    }
+
+    // bi-directional streaming example
+    public void scheduleChatSample() {
+        StreamObserver<BinSchedule> requestObserver =
+            BinScheduleServiceGrpc.newStub(channel).scheduleChat(new StreamObserver<Ack>() {
+                @Override
+                public void onNext(Ack ack) {
+                    System.out.println("Server ack: " + ack.getMessage());
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    System.err.println("ScheduleChat error: " + t.getMessage());
+                }
+
+                @Override
+                public void onCompleted() {
+                    System.out.println("ScheduleChat completed.");
+                }
+            });
+
+        BinSchedule s1 = BinSchedule.newBuilder()
+            .setCity("Dublin")
+            .setGreenDate("Mon")
+            .setBlueDate("Thu")
+            .setBrownDate("Sat")
+            .build();
+
+        BinSchedule s2 = BinSchedule.newBuilder()
+            .setCity("Cork")
+            .setGreenDate("Tue")
+            .setBlueDate("Fri")
+            .setBrownDate("Sun")
+            .build();
+
+        BinSchedule s3 = BinSchedule.newBuilder()
+            .setCity("Galway")
+            .setGreenDate("Wed")
+            .setBlueDate("Sat")
+            .setBrownDate("Mon")
+            .build();
+
+        requestObserver.onNext(s1);
+        requestObserver.onNext(s2);
+        requestObserver.onNext(s3);
+
+        requestObserver.onCompleted();
     }
 }

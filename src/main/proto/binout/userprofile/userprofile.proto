@@ -1,6 +1,4 @@
-//Proto file for UserProfileService, manages user profiles and their bin preferences.
 syntax = "proto3";
-
 package binout.userprofile;
 
 option java_multiple_files = true;
@@ -8,25 +6,18 @@ option java_package = "binout.userprofile";
 option java_outer_classname = "UserProfileProto";
 
 message UserProfile {
-  string userId = 1;
-  string name = 2;
-  string email = 3;
-  string binProvider = 4;
-  string city = 5;
-  string zone = 6;
-  repeated string binTypes = 7;
+  string user_id = 1;
+  string city = 2;
+  string service_provider = 3;
 }
 
 message UserRequest {
-  string userId = 1;
-}
-
-message Ack {
-  bool success = 1;
-  string message = 2;
+  string user_id = 1;
 }
 
 service UserProfileService {
-  rpc CreateProfile(UserProfile) returns (Ack);
+  // Simple RPC for getting user profile by id
   rpc GetProfile(UserRequest) returns (UserProfile);
+  // Server streaming RPC to send repeated user profiles
+  rpc StreamProfiles(UserRequest) returns (stream UserProfile);
 }

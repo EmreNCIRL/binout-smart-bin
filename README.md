@@ -1,66 +1,73 @@
-#binout-smart-bin
+BinOut – Smart Waste Management System
 
-A distributed smart bin reminder app using Java, gRPC, and Swing – for Distributed Systems CA – NCIRL
-#BinOut – Smart Bin Reminder App
+A simple distributed system project built in Java using gRPC and Swing, developed for a Distributed Systems course.
+Overview
 
-Hi! This is a small project I built for my Distributed Systems module at NCI.
-The goal is to help people stay on top of their bin collection days using a lightweight, automated setup.
+BinOut provides three core services to help users access and manage bin pickup schedules and recycling tips:
 
-It supports the United Nations SDG 11: Sustainable Cities and Communities by encouraging better waste‑management habits through a small‑scale automated environment.
-#What It Does
+    User Profile Service: Retrieves user profiles with details like city and bin service provider.
 
-    Lets users enter their profile (provider, city, zone, bin types)
+    Bin Schedule Service: Offers bin pickup schedules by city and supports uploading or updating schedules via streaming.
 
-    Stores profiles and bin schedules in separate services
+    Recycling Advisor Service: Provides recycling tips based on bin color/type.
 
-    Simulates collection schedules with hardcoded dates
+The client GUI lets users query these services interactively by entering user IDs, city names, or bin types, and displays the results in a straightforward interface.
+Architecture and Features
 
-    “Next pickup” buttons show tomorrow’s date or “N/A”
+    Services implemented in Java using gRPC with all four RPC types:
 
-    Simple Swing‑based GUI for registration and lookup
+        Unary RPC (simple request/response)
 
-#Tech Stack
+        Server-side streaming
 
-    Java 17 for all services and client
+        Client-side streaming
 
-    gRPC (Protobuf 3 + grpc‑java) for inter‑service RPC
+        Bidirectional streaming
 
-    Swing for the GUI
+    Service registration and discovery handled via jmDNS for dynamic location of services.
 
-    Maven for build, Protobuf codegen, and execution
+    Basic authentication with metadata tokens in gRPC calls.
 
-#Services
+    Minimal error handling with clear messaging on missing data.
 
-    Service Registry – dynamic discovery and registration of services
+    GUI built using Swing with three panels to interact with each service:
 
-    User Profile Service – stores userId, name, email, bin provider, city/zone, bin types
+        User profile lookup
 
-    Bin Schedule Service – manages/retrieves bin pickup schedules
+        Bin schedule retrieval
 
-#GUI Overview
+        Recycling tips
 
-    Profile pane: enter name, email, provider, city, zone, and select bin types
+Technology Stack
 
-    “Create/Update Profile” button saves both profile and schedule
+    Java 17
 
-    Four “Pickup” buttons (Green, Blue, Brown, Red) display next collection date in a dialog
+    gRPC and Protobuf 3
 
-    Status banner confirms when profile and schedule are saved
+    jmDNS for service discovery
 
-#Testing
+    Swing for GUI
 
-    Unit tests for each RPC implementation
+    Maven for build and dependency management
 
-    Integration test covering full workflow: register → create profile → set schedule → get schedule
+How to Run
 
-    Edge cases: missing profile, missing schedule
+    Start the server on port 50051. It registers all three services via jmDNS.
 
-#Deployment
+    Launch the Swing client to connect to the server locally.
 
-Everything runs locally on port 50051 to simulate a distributed environment.
-No external/cloud dependencies—just Java, Maven, and your desktop.
+    Use the GUI to enter inputs and fetch service data.
+
+Notes
+
+    Data is stored in-memory with some hardcoded initial values for demo purposes.
+
+    The app focuses on meeting assignment requirements with clear, basic implementations rather than advanced features.
+
+    Supports all required RPC types and service registration but keeps logic simple to ensure clarity and ease of testing.
+
 Author
 
 Emre Ketme
-Student ID: 24191779
+Distributed Systems CA
 x24191779@student.ncirl.ie
