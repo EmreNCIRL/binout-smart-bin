@@ -145,4 +145,4 @@ public class BinOutGUI implements ActionListener {
             JOptionPane.showMessageDialog(null, "Error: " + ex.getMessage());
         }
     }
-}
+} 
