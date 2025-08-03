@@ -14,11 +14,13 @@ import io.grpc.ServerBuilder;
 
 public class BinOutServer {
     public static void main(String[] args) throws Exception {
+        // start gRPC server with all service implementations and interceptor
+
         Server server = ServerBuilder.forPort(50051)
             .addService(new BinScheduleImpl())
             .addService(new UserProfileImpl())
             .addService(new RecyclingAdvisorImpl())
-            .intercept(new AuthInterceptor()) // add metadata auth interceptor here
+            .intercept(new AuthInterceptor())
             .build();
 
         System.out.println("Starting BinOut gRPC server on port 50051...");
@@ -27,9 +29,10 @@ public class BinOutServer {
         System.out.println("- UserProfileImpl");
         System.out.println("- RecyclingAdvisorImpl");
 
-        server.start();
+        server.start();//starts the grPC server
         System.out.println("Server started successfully.");
-
+        
+        //register services using jmDNS for service discovery
         JmDNSServiceRegistrar registrar = new JmDNSServiceRegistrar();
 
         registrar.registerService("_binschedule._tcp.local.", "BinScheduleService", 50051, "Bin schedule service");
@@ -37,7 +40,8 @@ public class BinOutServer {
         registrar.registerService("_recyclingadvisor._tcp.local.", "RecyclingAdvisorService", 50051, "Recycling advisor service");
 
         System.out.println("All services registered with jmDNS.");
-
+        
+        //shutdown hook for cleanup
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Shutting down server...");
             registrar.unregisterAll();
@@ -45,6 +49,6 @@ public class BinOutServer {
             System.out.println("Server stopped.");
         }));
 
-        server.awaitTermination();
+        server.awaitTermination(); //keeps the server running
     }
 }

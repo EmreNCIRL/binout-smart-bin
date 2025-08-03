@@ -12,6 +12,7 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
     private final ConcurrentHashMap<String, BinSchedule> citySchedules = new ConcurrentHashMap<>();
 
     public BinScheduleImpl() {
+        // hardcoded bin schedules for example cities
         citySchedules.put("dublin", BinSchedule.newBuilder()
             .setCity("dublin")
             .setGreenDate("Monday")
@@ -31,7 +32,8 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
             .setBrownDate("Sunday")
             .build());
     }
-
+    
+    // Unary RPC to get schedule by city
     @Override
     public void getSchedule(BinRequest request, StreamObserver<BinSchedule> responseObserver) {
         BinSchedule schedule = citySchedules.get(request.getCity().toLowerCase());
@@ -42,6 +44,8 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
             responseObserver.onError(new Throwable("City schedule not found"));
         }
     }
+    
+    //Server streaming RPC to send schedule multiple times with delay
 
     @Override
     public void streamSchedules(BinRequest request, StreamObserver<BinSchedule> responseObserver) {
@@ -60,6 +64,8 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
             responseObserver.onCompleted();
         }
     }
+    
+    //client straming RPC to upload multiple schedules 
 
     @Override
     public StreamObserver<BinSchedule> uploadSchedules(StreamObserver<Ack> responseObserver) {
@@ -89,6 +95,8 @@ public class BinScheduleImpl extends BinScheduleServiceGrpc.BinScheduleServiceIm
             }
         };
     }
+    
+    //bidirectional streaming for RPC for live shcedule updates and ack.
 
     @Override
     public StreamObserver<BinSchedule> scheduleChat(StreamObserver<Ack> responseObserver) {

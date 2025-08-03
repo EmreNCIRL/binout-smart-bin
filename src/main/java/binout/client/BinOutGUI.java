@@ -36,7 +36,7 @@ public class BinOutGUI implements ActionListener {
         mainPanel.add(welcomeLabel);
         mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        // Create 3 service panels for user profile, bin schedule and recycling tips
+        // 3 service panels for user profile, bin schedule and recycling tips
         mainPanel.add(createServicePanel(
                 "Please enter your user ID to get user details and bins you have.",
                 "User ID (e.g. user1, user2, user3):",
@@ -63,7 +63,7 @@ public class BinOutGUI implements ActionListener {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
-        // Create grpc client connection to localhost server at port 50051
+        // grpc client connection to localhost server at port 50051
         client = new BinOutClient("localhost", 50051);
 
         // Default input values for easy testing
@@ -72,7 +72,7 @@ public class BinOutGUI implements ActionListener {
         binTypeField.setText("green");
     }
 
-    // Creates a service panel with instructions, input field, button and response area
+    // a service panel with instructions, input field, button and response area
     private JPanel createServicePanel(String instruction, String label, String buttonText, String type) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));

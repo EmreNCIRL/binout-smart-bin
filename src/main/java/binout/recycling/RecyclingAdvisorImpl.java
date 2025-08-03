@@ -9,7 +9,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.HashMap;
 import java.util.Map;
 
-// this class gives back tips about how to recycle bins (green, blue, brown)
+// gives back tips about how to recycle bins (green, blue, brown)
 public class RecyclingAdvisorImpl extends RecyclingAdvisorServiceGrpc.RecyclingAdvisorServiceImplBase {
     private final Map<String, String> tipsMap = new HashMap<>();
     
@@ -20,7 +20,7 @@ public class RecyclingAdvisorImpl extends RecyclingAdvisorServiceGrpc.RecyclingA
         tipsMap.put("brown", "No plastic bags in organic waste");
     }
 
-    // this method handles the rpc call and sends the tip back
+    // handles the rpc call and sends the tip back
     @Override
     public void getRecyclingTip(WasteType request, StreamObserver<RecyclingTip> responseObserver) {
         String tips = tipsMap.getOrDefault(request.getType().toLowerCase(), 
